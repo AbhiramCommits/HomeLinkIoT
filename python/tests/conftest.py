@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import socket
 import time
 from collections.abc import Iterator
 
@@ -9,12 +8,7 @@ import pytest
 from homelink.broker.server import Broker, BrokerRunner
 from homelink.cloud.shadow import ShadowService
 from homelink.cloud.store import SqliteStore
-
-
-def free_port() -> int:
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as sock:
-        sock.bind(("127.0.0.1", 0))
-        return int(sock.getsockname()[1])
+from tests.helpers import free_port
 
 
 @pytest.fixture
@@ -22,6 +16,7 @@ def broker(tmp_path) -> Iterator[tuple[Broker, int]]:
     instance = Broker(port=free_port(), log_path=tmp_path / "broker.log")
     runner = BrokerRunner(instance)
     runner.start()
+    instance.runner = runner  # type: ignore[attr-defined]  # test-only restart handle
     try:
         yield instance, instance.port
     finally:
