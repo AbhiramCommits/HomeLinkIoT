@@ -56,6 +56,25 @@ and the forced-outage zero-loss/zero-duplicate integration test.
 
 ## Fleet Analytics
 
+Command: `python -m homelink.analytics.generate_fleet --seed 7 --devices 40
+--days 30` then `python -m homelink.analytics.fleet`.
+
+- Dataset: 40 devices, 1191 runs, span 29.98 days; 45 injected faults, 15
+  injected premature stops, 51 anomalous runs.
+- Runs per device per week: mean `6.952` (min `4.436`, max `8.873`).
+- Runtime: mean `904.32 s`, median `896.18 s`, p95 `1373.58 s` (min
+  `111.8 s`, max `2024.78 s`).
+- Error-code Pareto (top 3): `BRUSH_JAM 18 faults / 40.0%`,
+  `FILTER_CLOG 18 / 40.0%`, `WHEEL_STALL 9 / 20.0%`.
+- Firmware adoption: 1.0.0 `18.47%`, 1.1.0 `24.43%`, 1.2.0 `43.16%`,
+  1.3.0 `13.94%`.
+- Anomaly detector (rolling median + MAD, threshold 3.5): precision
+  `0.8033`, recall `0.9608`, F1 `0.875`, false alerts
+  `10.076 per 1000 runs`; 61 alerts, 49 TP, 12 FP, 2 FN. Per-fault detection:
+  BRUSH_JAM `18/18`, FILTER_CLOG `18/18`, WHEEL_STALL `9/9`.
+- Outputs: `analytics/out/fleet.json`, 5 PNG charts, and
+  `analytics/out/report.md`.
+
 ## Test Suite
 
 - Step 2 Python suite: 74 passed (0 failed) in 6.21s.
@@ -71,5 +90,11 @@ and the forced-outage zero-loss/zero-duplicate integration test.
 - Live check with the demo stack running: `GET /devices` with
   `x-api-key: dev-key` returned `3` devices, all `online: true`; the same
   request without a key returned `401`.
+- Dashboard unit tests: 9 passed in 3.21s across 3 files (LineChart 2,
+  ShadowDiff 3, stale logic 4).
+- Playwright e2e: 2 tests passed in 22.3s (fleet list -> device detail ->
+  Dock/Start command state changes -> OTA 1.3.0 success; analytics page
+  renders usage histogram, Pareto, and alert feed). The e2e harness boots the
+  demo stack (`--no-outage`), the API on 18080, and the Vite dashboard on 4173.
 
 ## CI

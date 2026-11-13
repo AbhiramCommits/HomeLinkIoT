@@ -24,7 +24,7 @@ test-py:
 
 test-ts:
 	cd api && npm run build && npm test
-	cd dashboard && npm run build && npm run test -- --run
+	cd dashboard && npm run build && npm test
 
 test-e2e:
 	cd dashboard && npx playwright test

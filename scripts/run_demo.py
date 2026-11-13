@@ -55,6 +55,11 @@ def main(argv: list[str] | None = None) -> int:
     parser.add_argument("--spool-dir", default="device_spool")
     parser.add_argument("--seed", type=int, default=7)
     parser.add_argument("--json-out", default=None)
+    parser.add_argument(
+        "--no-outage",
+        action="store_true",
+        help="skip the forced broker outage (used by Playwright e2e for determinism)",
+    )
     args = parser.parse_args(argv)
 
     db_path = Path(args.db)
@@ -139,7 +144,7 @@ def main(argv: list[str] | None = None) -> int:
         start = time.monotonic()
         broker_down = False
         outage_started_at: float | None = None
-        outage_done = args.seconds <= 15
+        outage_done = args.no_outage or args.seconds <= 15
         restart_at: float | None = None
         reconnect_ms: float | None = None
         ota_success_triggered = False
@@ -285,6 +290,7 @@ def main(argv: list[str] | None = None) -> int:
 
         summary = {
             "seconds": args.seconds,
+            "outage": not args.no_outage,
             "devices": len(appliances),
             "provisioning": [
                 {
