@@ -449,6 +449,23 @@ class Appliance:
             ).to_dict()
             return sample
 
+    def _forget_outgoing(self, mid: int) -> None:
+        """Remove an unacknowledged message from paho's retry queue.
+
+        The sample is written to the durable spool instead, so retransmission
+        would create a duplicate seq at the broker. Shadow also dedupes by seq,
+        but removing the queued copy keeps the wire semantics exact.
+        """
+        try:
+            with self.client._out_message_mutex:  # type: ignore[attr-defined]
+                removed = self.client._out_messages.pop(mid, None)  # type: ignore[attr-defined]
+            if removed is not None:
+                self.client._inflight_messages = max(  # type: ignore[attr-defined]
+                    0, self.client._inflight_messages - 1
+                )
+        except (AttributeError, KeyError):
+            pass
+
     def _publish_sample(self, sample: dict[str, Any]) -> bool:
         if not self._connected.is_set():
             return False
@@ -458,12 +475,15 @@ class Appliance:
             qos=1,
         )
         if info.rc != mqtt.MQTT_ERR_SUCCESS:
+            self._forget_outgoing(info.mid)
             return False
         try:
             info.wait_for_publish(timeout=1.0)
         except RuntimeError:
+            self._forget_outgoing(info.mid)
             return False
         if not info.is_published():
+            self._forget_outgoing(info.mid)
             return False
         with self._lock:
             self.published_count += 1

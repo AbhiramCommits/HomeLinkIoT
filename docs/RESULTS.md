@@ -92,9 +92,30 @@ Command: `python -m homelink.analytics.generate_fleet --seed 7 --devices 40
   request without a key returned `401`.
 - Dashboard unit tests: 9 passed in 3.21s across 3 files (LineChart 2,
   ShadowDiff 3, stale logic 4).
-- Playwright e2e: 2 tests passed in 22.3s (fleet list -> device detail ->
-  Dock/Start command state changes -> OTA 1.3.0 success; analytics page
-  renders usage histogram, Pareto, and alert feed). The e2e harness boots the
-  demo stack (`--no-outage`), the API on 18080, and the Vite dashboard on 4173.
+- Playwright e2e: 2 tests passed (test time 6.5s) covering fleet list ->
+  device detail -> Dock/Start command state changes -> OTA 1.3.0 success, and
+  the analytics page (usage histogram, Pareto, alert feed). The e2e harness
+  boots the demo stack (`--no-outage`), the API on 18080, and the Vite
+  dashboard on 4173.
+- Step 6 negative/regression suite: `101 passed` in 31.10s; `test_negative.py`
+  has 7 tests, `test_regression.py` 5 tests, `test_analytics.py` 3 tests.
+- Python coverage from `pytest --cov=homelink`: `86%` (2728 statements, 377
+  missed), above the CI gate of 80%.
+
+### Benchmarks
+
+`python scripts/bench.py` (latest full run, Python 3.11.14, Node 20.19.5,
+API built from `api/dist`):
+
+- Broker throughput: 20,000 QoS1 telemetry messages from 10 concurrent
+  clients in 5.117s = `3908.3 msgs/s`.
+- End-to-end publish -> shadow-persisted latency, 300 samples:
+  p50 `0.419 ms`, p95 `1.071 ms`, p99 `1.229 ms`.
+- Shadow update throughput: 500 updates applied in 0.208s =
+  `2404.4 updates/s` (applied version 500).
+- Reconnect recovery after a 10-second broker outage: `1547.4 ms`.
+- API read latency, 200 `GET /devices` requests: p50 `0.339 ms`,
+  p95 `0.773 ms`.
+- Raw output: `bench/out/bench.json`.
 
 ## CI

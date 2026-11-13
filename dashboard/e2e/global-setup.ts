@@ -77,8 +77,9 @@ function stopProcess(child: ChildProcess): void {
 
 async function globalSetup(): Promise<() => Promise<void>> {
   fs.mkdirSync(logDir, { recursive: true });
-  const python = process.env.PYTHON_BIN ?? path.join(repoRoot, ".venv", "bin", "python");
-  if (!fs.existsSync(python)) {
+  const pythonEnv = process.env.PYTHON_BIN;
+  const python = pythonEnv ?? path.join(repoRoot, ".venv", "bin", "python");
+  if (!pythonEnv && !fs.existsSync(python)) {
     throw new Error(`Python virtualenv not found at ${python}; run make install`);
   }
   if (!fs.existsSync(path.join(apiDir, "dist", "local.js"))) {
