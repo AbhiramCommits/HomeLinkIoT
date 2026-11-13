@@ -61,5 +61,15 @@ and the forced-outage zero-loss/zero-duplicate integration test.
 - Step 2 Python suite: 74 passed (0 failed) in 6.21s.
 - Step 3 Python suite: 86 passed (0 failed) in 19.43s (adds 5 BLE, 4 appliance,
   3 OTA tests).
+- Step 4 API: 7 routes (`GET /devices`, `GET /devices/{id}`,
+  `GET /devices/{id}/runs`, `POST /devices/{id}/commands`,
+  `PATCH /devices/{id}/shadow`, `POST /devices/{id}/ota`,
+  `GET /fleet/analytics`); 36 vitest/supertest tests passed in 5.92s across
+  8 files.
+- API latency over a 200-request `GET /devices` loop: p50 `2.10 ms`,
+  p95 `4.44 ms`, p99 `6.01 ms` (in-process supertest, Node 20.19.5).
+- Live check with the demo stack running: `GET /devices` with
+  `x-api-key: dev-key` returned `3` devices, all `online: true`; the same
+  request without a key returned `401`.
 
 ## CI

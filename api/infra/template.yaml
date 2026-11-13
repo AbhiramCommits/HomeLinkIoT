@@ -1,0 +1,225 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Transform: AWS::Serverless-2016-10-31
+Description: HomeLinkIoT API - HTTP API, Lambda handlers, DynamoDB single table, IoT telemetry rule
+
+Parameters:
+  ApiKey:
+    Type: String
+    NoEcho: true
+    Default: dev-key
+    Description: Value expected in the x-api-key header (local stand-in for a Cognito/IAM authorizer)
+  MqttBrokerHost:
+    Type: String
+    Default: 127.0.0.1
+    Description: Local broker host; in production this is the AWS IoT Core endpoint
+
+Globals:
+  Function:
+    Runtime: nodejs20.x
+    Architectures: [arm64]
+    Timeout: 15
+    MemorySize: 256
+    Environment:
+      Variables:
+        HOMELINK_API_KEY: !Ref ApiKey
+        HOMELINK_MQTT_HOST: !Ref MqttBrokerHost
+        HOMELINK_MQTT_PORT: "18831"
+    Policies:
+      - DynamoDBCrudPolicy:
+          TableName: !Ref HomeLinkTable
+      - Statement:
+          - Effect: Allow
+            Action:
+              - iot:Publish
+              - iot:Receive
+              - iot:Subscribe
+            Resource: !Sub "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/*"
+
+Resources:
+  HomeLinkHttpApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowOrigins:
+          - "*"
+        AllowMethods:
+          - GET
+          - POST
+          - PATCH
+          - OPTIONS
+        AllowHeaders:
+          - x-api-key
+          - content-type
+
+  # Mirrors python/homelink/cloud/store.py: single table, pk/sk, and a
+  # thing_id+ts GSI used for run-history queries.
+  HomeLinkTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      TableName: homelink
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: pk
+          AttributeType: S
+        - AttributeName: sk
+          AttributeType: S
+        - AttributeName: thing_id
+          AttributeType: S
+        - AttributeName: ts
+          AttributeType: N
+      KeySchema:
+        - AttributeName: pk
+          KeyType: HASH
+        - AttributeName: sk
+          KeyType: RANGE
+      GlobalSecondaryIndexes:
+        - IndexName: thing_id-ts-index
+          KeySchema:
+            - AttributeName: thing_id
+              KeyType: HASH
+            - AttributeName: ts
+              KeyType: RANGE
+          Projection:
+            ProjectionType: ALL
+
+  ListDevicesFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/
+      Handler: handlers/listDevices.handler
+      Description: GET /devices
+      Events:
+        ListDevices:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeLinkHttpApi
+            Path: /devices
+            Method: GET
+
+  GetDeviceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/
+      Handler: handlers/getDevice.handler
+      Description: GET /devices/{id}
+      Events:
+        GetDevice:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeLinkHttpApi
+            Path: /devices/{id}
+            Method: GET
+
+  ListRunsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/
+      Handler: handlers/listRuns.handler
+      Description: GET /devices/{id}/runs?from&to
+      Events:
+        ListRuns:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeLinkHttpApi
+            Path: /devices/{id}/runs
+            Method: GET
+
+  PostCommandFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/
+      Handler: handlers/postCommand.handler
+      Description: POST /devices/{id}/commands
+      Events:
+        PostCommand:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeLinkHttpApi
+            Path: /devices/{id}/commands
+            Method: POST
+
+  PatchShadowFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/
+      Handler: handlers/patchShadow.handler
+      Description: PATCH /devices/{id}/shadow
+      Events:
+        PatchShadow:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeLinkHttpApi
+            Path: /devices/{id}/shadow
+            Method: PATCH
+
+  TriggerOtaFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/
+      Handler: handlers/triggerOta.handler
+      Description: POST /devices/{id}/ota
+      Events:
+        TriggerOta:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeLinkHttpApi
+            Path: /devices/{id}/ota
+            Method: POST
+
+  GetFleetAnalyticsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      CodeUri: ../dist/
+      Handler: handlers/getFleetAnalytics.handler
+      Description: GET /fleet/analytics
+      Events:
+        GetFleetAnalytics:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref HomeLinkHttpApi
+            Path: /fleet/analytics
+            Method: GET
+
+  # In production the IoT rule fans telemetry into the shadow/run ingest Lambda.
+  # The local equivalent lives in python/homelink/cloud/shadow.py.
+  HomeLinkTelemetryRule:
+    Type: AWS::IoT::TopicRule
+    Properties:
+      TopicRulePayload:
+        RuleDisabled: false
+        Sql: "SELECT * FROM 'homelink/+/telemetry'"
+        Actions:
+          - Republish:
+              Topic: "homelink/archive/${topic(2)}/telemetry"
+              RoleArn: !GetAtt IoTRuleRole.Arn
+
+  IoTRuleRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: iot.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: HomeLinkRepublish
+          PolicyDocument:
+            Version: "2012-10-17"
+            Statement:
+              - Effect: Allow
+                Action:
+                  - iot:Publish
+                Resource: !Sub "arn:aws:iot:${AWS::Region}:${AWS::AccountId}:topic/homelink/archive/*"
+
+Outputs:
+  ApiUrl:
+    Description: HTTP API endpoint
+    Value: !Sub "https://${HomeLinkHttpApi}.execute-api.${AWS::Region}.amazonaws.com"
+  TableName:
+    Description: Single-table DynamoDB table
+    Value: !Ref HomeLinkTable
+  TelemetryRule:
+    Description: IoT Core telemetry rule
+    Value: !Ref HomeLinkTelemetryRule
