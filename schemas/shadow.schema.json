@@ -1,0 +1,23 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://homelink.local/schemas/shadow.schema.json",
+  "title": "AWS IoT Compatible Device Shadow",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["state", "version", "timestamp"],
+  "properties": {
+    "state": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "desired": { "type": ["object", "null"] },
+        "reported": { "type": ["object", "null"] },
+        "delta": { "type": ["object", "null"] }
+      }
+    },
+    "version": { "type": "integer", "minimum": 0 },
+    "timestamp": { "type": "integer", "minimum": 0 },
+    "clientToken": { "type": ["string", "null"], "maxLength": 64 },
+    "metadata": { "type": "object" }
+  }
+}

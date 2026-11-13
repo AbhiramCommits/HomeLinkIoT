@@ -1,0 +1,48 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+build/
+dist/
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node
+node_modules/
+api/dist/
+dashboard/dist/
+dashboard/test-results/
+dashboard/playwright-report/
+dashboard/blob-report/
+*.tsbuildinfo
+
+# Runtime spool / databases / logs
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+device_spool/
+broker.log
+cloud.log
+npm-debug.log*
+api/.env
+
+# Analytics / bench artifacts (regenerated)
+data/*.parquet
+data/*.csv
+analytics/out/*.png
+analytics/out/*.json
+analytics/out/report.md
+bench/out/*.json
+*.log
+
+# OS / editor
+.DS_Store
+.idea/
+.vscode/
