@@ -4,6 +4,7 @@ PIP := .venv/bin/pip
 BROKER_HOST ?= localhost
 BROKER_PORT ?= 18831
 STORE ?= sqlite:///homelink.db
+DEMO_SECONDS ?= 60
 
 .PHONY: install lint test-py test-ts test-e2e broker cloud device api dashboard demo bench analytics clean
 
@@ -11,8 +12,8 @@ install:
 	python3.11 -m venv .venv
 	$(PIP) install --upgrade pip
 	$(PIP) install -e "python/[dev]"
-	cd api && npm install
-	cd dashboard && npm install
+	cd api && npm ci
+	cd dashboard && npm ci
 
 lint:
 	$(PYTHON) -m ruff check python
@@ -45,7 +46,7 @@ dashboard:
 	cd dashboard && npm run dev
 
 demo:
-	$(PYTHON) scripts/run_demo.py
+	$(PYTHON) scripts/run_demo.py --seconds $(DEMO_SECONDS)
 
 bench:
 	$(PYTHON) scripts/bench.py

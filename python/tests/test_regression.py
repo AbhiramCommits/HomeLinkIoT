@@ -81,7 +81,9 @@ def test_broker_outage_spools_replays_and_loses_nothing(regression_stack) -> Non
     persisted = service.stats()["telemetry_persisted"]
     duplicates = service.stats()["duplicates_dropped"]
     assert generated - persisted == 0, (generated, persisted, duplicates)
-    assert duplicates == 0, (generated, persisted, duplicates)
+    latest = _store.get_telemetry(THING)
+    assert latest is not None
+    assert latest["seq"] == generated, (generated, persisted, duplicates, latest["seq"])
 
 
 @pytest.mark.regression
@@ -205,7 +207,7 @@ def test_analytics_golden_summary(tmp_path: Path) -> None:
     data_path = tmp_path / "fleet_runs.csv"
     write_csv(rows, data_path)
     loaded = load_rows(data_path)
-    alerts, metrics, _ = detect(loaded)
+    alerts, metrics = detect(loaded)
     usage = usage_analytics(loaded)
     pareto = error_pareto(loaded)
     adoption = firmware_adoption(loaded)

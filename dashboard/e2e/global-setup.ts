@@ -1,4 +1,4 @@
-import { spawn, type ChildProcess } from "node:child_process";
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 
@@ -85,6 +85,27 @@ async function globalSetup(): Promise<() => Promise<void>> {
   if (!fs.existsSync(path.join(apiDir, "dist", "local.js"))) {
     throw new Error("api/dist/local.js missing; run `npm run build` in api/ before e2e");
   }
+  const analyticsFile = path.join(repoRoot, "analytics", "out", "fleet.json");
+  if (!fs.existsSync(analyticsFile)) {
+    console.log("e2e: generating fleet analytics");
+    execFileSync(
+      python,
+      ["-m", "homelink.analytics.generate_fleet", "--seed", "7", "--devices", "40", "--days", "30"],
+      { cwd: repoRoot, stdio: "inherit" },
+    );
+    execFileSync(python, ["-m", "homelink.analytics.fleet"], {
+      cwd: repoRoot,
+      stdio: "inherit",
+    });
+  }
+
+  // Remove any stale database from a previous run so the API cannot attach to
+  // an inode that the demo deletes during its own startup cleanup.
+  for (const suffix of ["", "-wal", "-shm"]) {
+    const candidate = path.join(repoRoot, `homelink.db${suffix}`);
+    if (fs.existsSync(candidate)) fs.unlinkSync(candidate);
+  }
+  fs.rmSync(path.join(repoRoot, "device_spool"), { recursive: true, force: true });
 
   const demoLog = path.join(logDir, "demo.log");
   startProcess(

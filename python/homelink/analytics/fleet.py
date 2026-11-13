@@ -74,13 +74,12 @@ def robust_z(value: float, history: list[float], min_scale: float = 0.0) -> floa
 
 def detect(
     rows: list[dict[str, Any]], threshold: float = THRESHOLD
-) -> tuple[list[dict[str, Any]], dict[str, Any], dict[str, Any]]:
+) -> tuple[list[dict[str, Any]], dict[str, Any]]:
     by_device: dict[str, list[dict[str, Any]]] = defaultdict(list)
     for row in rows:
         by_device[row["device_id"]].append(row)
     baselines = operating_point_baselines(rows)
     alerts: list[dict[str, Any]] = []
-    predicted_ids: set[str] = set()
     fault_totals: Counter[str] = Counter()
     fault_detected: Counter[str] = Counter()
     tp = fp = fn = tn = 0
@@ -139,7 +138,6 @@ def detect(
             else:
                 tn += 1
             if predicted:
-                predicted_ids.add(row["run_id"])
                 alerts.append(
                     {
                         "run_id": row["run_id"],
@@ -193,7 +191,7 @@ def detect(
         },
     }
     alerts.sort(key=lambda alert: alert["started_at"], reverse=True)
-    return alerts, metrics, predicted_ids and {"predicted_ids": sorted(predicted_ids)} or {}
+    return alerts, metrics
 
 
 def usage_analytics(rows: list[dict[str, Any]]) -> dict[str, Any]:
@@ -434,7 +432,7 @@ def main(argv: list[str] | None = None) -> None:
     out_dir = Path(args.out)
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    alerts, metrics, _ = detect(rows, threshold=args.threshold)
+    alerts, metrics = detect(rows, threshold=args.threshold)
     usage = usage_analytics(rows)
     pareto = error_pareto(rows)
     adoption = firmware_adoption(rows)

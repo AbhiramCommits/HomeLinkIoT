@@ -89,7 +89,7 @@ def test_detector_and_aggregations_on_synthetic_rows() -> None:
     rows[15]["fault_label"] = "BRUSH_JAM"
     rows[15]["error_code"] = "BRUSH_JAM"
     rows[15]["anomalous"] = 1
-    alerts, metrics, _ = detect(rows)
+    alerts, metrics = detect(rows)
     assert any(alert["run_id"] == "r-15" for alert in alerts)
     assert metrics["true_positives"] >= 1
     assert metrics["false_negatives"] == 0

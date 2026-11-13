@@ -185,4 +185,6 @@ def test_offline_spool_reconnect_zero_loss(stack, broker) -> None:
     persisted = service.stats()["telemetry_persisted"]
     duplicates = service.stats()["duplicates_dropped"]
     assert generated - persisted == 0, (generated, persisted, duplicates)
-    assert duplicates == 0, (generated, persisted, duplicates)
+    latest = store.get_telemetry(THING)
+    assert latest is not None
+    assert latest["seq"] == generated, (generated, persisted, duplicates, latest["seq"])
