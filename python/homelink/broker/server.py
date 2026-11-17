@@ -171,11 +171,14 @@ class Broker:
         self._stopping = True
         server, self._server = self._server, None
         if server is not None:
-            server.close()
-            await server.wait_closed()
+            server.close()  # stop accepting new connections
         for conn in list(self._connections):
             conn.graceful = True  # deliberate shutdown: no Last Will
             conn.abort()
+        if server is not None:
+            # Since Python 3.12.1, wait_closed() also waits for every accepted
+            # connection to close, so abort the clients first or this never returns.
+            await server.wait_closed()
         for session in self.sessions.values():
             session.connection = None
         self._log("broker stopped")
